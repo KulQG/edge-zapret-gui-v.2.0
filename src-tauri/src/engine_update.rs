@@ -574,8 +574,10 @@ fn replace_current<F: FnMut(EngineUpdateProgress)>(
 }
 
 fn engine_paths() -> Result<(PathBuf, PathBuf), AppError> {
-    let current = diagnostics::engine_dir()
-        .map_err(|detail| failure("Не удалось определить папку движка.", detail))?;
+    // The engine directory can be absent after a manual cleanup or an older
+    // installation. Recreate it with the same protected ACLs as the installer
+    // before canonicalizing its path; never create it with default ACLs.
+    let current = crate::storage_security::prepare_engine_storage()?;
     let parent = current
         .parent()
         .ok_or_else(|| failure("Путь движка неверен.", current.display().to_string()))?
@@ -627,7 +629,10 @@ fn capture_runtime(first_install: bool) -> Result<Option<RuntimeSnapshot>, AppEr
         if !matches!(snapshot.win_divert.state.as_str(), "missing" | "stopped") {
             return Err(failure(
                 "WinDivert активен или его состояние не определено.",
-                "Первая установка не изменяет работающий драйвер.".into(),
+                snapshot
+                    .win_divert
+                    .error
+                    .unwrap_or_else(|| "Первая установка не изменяет работающий драйвер.".into()),
             ));
         }
     }

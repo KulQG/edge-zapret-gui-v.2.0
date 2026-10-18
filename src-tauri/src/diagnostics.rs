@@ -477,36 +477,41 @@ fn inspect_windivert(engine_dir: &Path) -> WinDivertDiagnostic {
         .any(|name| engine_dir.join("bin").join(name).is_file());
     let candidates = ["WinDivert", "WinDivert14"];
     let mut found = Vec::new();
-    let mut errors = Vec::new();
+    let mut service_errors = Vec::new();
     for name in candidates {
         let service = inspect_service(name, ServiceKind::WinDivert);
         if service.installed {
             found.push((name, service.state));
         }
         if let Some(error) = service.error {
-            errors.push(error);
+            service_errors.push(error);
         }
     }
-    let managed = if found.is_empty() {
-        false
-    } else {
+    let ownership_error = if !found.is_empty() && service_errors.is_empty() {
         match crate::driver::managed_driver_status(engine_dir) {
-            Ok(()) => errors.is_empty(),
-            Err(error) => {
-                errors.push(match error.detail {
-                    Some(detail) => format!("{} {detail}", error.message),
-                    None => error.message,
-                });
-                false
-            }
+            Ok(()) => None,
+            Err(error) => Some(match error.detail {
+                Some(detail) => format!("{} {detail}", error.message),
+                None => error.message,
+            }),
         }
+    } else {
+        None
     };
-    summarize_windivert(&found, &errors, managed, driver_file_present)
+    let managed = !found.is_empty() && service_errors.is_empty() && ownership_error.is_none();
+    summarize_windivert(
+        &found,
+        &service_errors,
+        ownership_error.as_deref(),
+        managed,
+        driver_file_present,
+    )
 }
 
 fn summarize_windivert(
     found: &[(&str, String)],
-    errors: &[String],
+    service_errors: &[String],
+    ownership_error: Option<&str>,
     managed: bool,
     driver_file_present: bool,
 ) -> WinDivertDiagnostic {
@@ -517,8 +522,11 @@ fn summarize_windivert(
         .or_else(|| found.first());
     WinDivertDiagnostic {
         installed: !found.is_empty(),
-        managed: managed && !found.is_empty() && errors.is_empty(),
-        state: if errors.is_empty() {
+        managed: managed
+            && !found.is_empty()
+            && service_errors.is_empty()
+            && ownership_error.is_none(),
+        state: if service_errors.is_empty() {
             selected
                 .map(|(_, state)| state.clone())
                 .unwrap_or_else(|| "missing".into())
@@ -527,7 +535,14 @@ fn summarize_windivert(
         },
         name: selected.map(|(name, _)| (*name).to_owned()),
         driver_file_present,
-        error: (!errors.is_empty()).then(|| errors.join("; ")),
+        error: (!service_errors.is_empty() || ownership_error.is_some()).then(|| {
+            service_errors
+                .iter()
+                .map(String::as_str)
+                .chain(ownership_error)
+                .collect::<Vec<_>>()
+                .join("; ")
+        }),
     }
 }
 
@@ -697,15 +712,36 @@ mod tests {
     #[test]
     fn windivert_summary_never_hides_unknown_second_service() {
         let found = vec![("WinDivert", "running".into())];
-        let known = summarize_windivert(&found, &[], true, true);
+        let known = summarize_windivert(&found, &[], None, true, true);
         assert!(known.managed);
         assert_eq!(known.state, "running");
-        let unknown = summarize_windivert(&found, &["WinDivert14 inaccessible".into()], true, true);
+        let unknown = summarize_windivert(
+            &found,
+            &["WinDivert14 inaccessible".into()],
+            None,
+            true,
+            true,
+        );
         assert!(!unknown.managed);
         assert_eq!(unknown.state, "unknown");
         assert!(unknown.error.is_some());
-        let external = summarize_windivert(&found, &[], false, true);
+        let external = summarize_windivert(&found, &[], None, false, true);
         assert!(!external.managed);
+    }
+
+    #[test]
+    fn stopped_unowned_driver_keeps_known_state_but_reports_conflict() {
+        let found = vec![("WinDivert14", "stopped".into())];
+        let snapshot = summarize_windivert(
+            &found,
+            &[],
+            Some("WinDivert принадлежит другой установке"),
+            false,
+            false,
+        );
+        assert_eq!(snapshot.state, "stopped");
+        assert!(!snapshot.managed);
+        assert!(snapshot.error.is_some());
     }
 
     #[test]
@@ -714,9 +750,9 @@ mod tests {
             ("WinDivert", "stopped".into()),
             ("WinDivert14", "pending".into()),
         ];
-        let snapshot = summarize_windivert(&found, &[], false, true);
+        let snapshot = summarize_windivert(&found, &[], None, false, true);
         assert_eq!(snapshot.state, "pending");
-        let missing = summarize_windivert(&[], &[], true, false);
+        let missing = summarize_windivert(&[], &[], None, true, false);
         assert!(!missing.managed);
         assert!(!missing.installed);
         assert_eq!(missing.state, "missing");
