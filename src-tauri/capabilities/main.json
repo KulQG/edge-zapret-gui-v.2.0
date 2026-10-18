@@ -1,0 +1,29 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "The main window may use validated strategies, update and roll back the managed engine, and open the official service console.",
+  "windows": ["main"],
+  "permissions": [
+    "allow-get-diagnostics",
+    "allow-get-config",
+    "allow-save-appearance",
+    "allow-import-appearance-asset",
+    "allow-read-appearance-asset",
+    "allow-get-strategies",
+    "allow-select-strategy",
+    "allow-start-manual",
+    "allow-stop-manual",
+    "allow-get-manual-status",
+    "allow-start-strategy-scan",
+    "allow-cancel-strategy-scan",
+    "allow-get-strategy-scan-state",
+    "allow-check-current-strategy",
+    "allow-recover-strategy-scan",
+    "allow-update-engine",
+    "allow-rollback-engine",
+    "allow-get-rollback-available",
+    "allow-open-service-console",
+    "core:event:allow-listen"
+  ]
+}
+

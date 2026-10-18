@@ -1,0 +1,23 @@
+{
+  "name": "zapret-gui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "tauri": "tauri",
+    "package:windows": "tauri build --bundles nsis -- --locked",
+    "verify:release": "node scripts/verify-release.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.6"
+  }
+}
+

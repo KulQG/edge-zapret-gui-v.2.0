@@ -1,0 +1,26 @@
+# Windows acceptance plan
+
+Run on disposable Windows 10 and 11 x64 test systems. Save a VM snapshot and copies of `%LOCALAPPDATA%\ZapretGui` and `%ProgramData%\ZapretGui` before update, rollback, or uninstall tests. Record the installer hash, OS, account type, Flowseal release, VPN state, process identity, result, and any console flash for each scenario.
+
+**Status: the redesigned GUI BAT path has not received user playback/seek testing without VPN. Live engine update, rollback, and the visible service console have not been accepted.** The earlier user-confirmed YouTube result used the official BAT directly and hid that same console; it did not exercise GUI Start. The matrix below states expected results, not completed checks.
+
+| ID | Action | Expected result | Status |
+|---|---|---|---|
+| WIN-01 | Install NSIS on clean Windows with normal UAC; cancel in a second run. | Install succeeds only after approval. GUI launches from protected Program Files; engine storage is prepared in ProgramData. Cancellation leaves no partial installation. | NOT EXECUTED |
+| WIN-02 | Upgrade an installed GUI with local appearance, config, history, lists, and engine; try uninstall while GUI is open. | Upgrade preserves user data and engine. Open GUI blocks installer changes. | NOT EXECUTED |
+| WIN-03 | First engine install with no existing `current`. | Official release ZIP is validated and installed; runtime `*-user.txt` files are not required during archive validation; no strategy starts automatically. | NOT EXECUTED |
+| WIN-04 | Start ALT2 from GUI with VPN off; play and seek YouTube before and after console hiding. | UAC is normal; official BAT runs on normal desktop; its owned console hides without closing the engine; playback and seeking continue. Record any startup flash. | NOT EXECUTED |
+| WIN-05 | Close and reopen GUI while ALT2 runs, then press Stop. | Same owned `winws.exe` keeps running across GUI exit and is rediscovered. Stop ends only that verified process; no unrelated window or process changes. | PARTIAL: process persistence and Stop checked; playback not checked |
+| WIN-06 | Cancel Start UAC; try another process/terminal named like winws or the BAT console. | Cancellation leaves no launch. App never hides or stops the unrelated process/window; conflicts have a clear Russian error. | NOT EXECUTED |
+| WIN-07 | Open official `service.bat` button and interact with its menu. | Normal UAC; visible console stays open for official service actions. GUI does not claim to manage the service. | NOT EXECUTED |
+| WIN-08 | Update with engine stopped, then with app-owned ALT2 running; keep VPN off for playback checks. | Stage and validate before stopping. Prior stopped mode stays stopped; running ALT2 is restored through BAT runner. User files and settings remain. | NOT EXECUTED |
+| WIN-09 | Install a zapret service, then press Update. | Update blocks before download because service restoration is not implemented. Service and engine remain untouched. | NOT EXECUTED |
+| WIN-10 | After a successful update, test playback/seek, then use user rollback. | Known previous engine remains available; rollback restores prior mode and strategy and preserves user files. | NOT EXECUTED |
+| WIN-11 | Simulate network loss, bad digest/ZIP, missing static file, locked engine, failed BAT start, interrupted journal, and backup cleanup failure. | Early failures do not touch `current`; later failures restore the former release/mode or report recoverable state. Committed cleanup failure never triggers rollback from a partly deleted backup. | NOT EXECUTED |
+| WIN-12 | Import and save a custom background, reopen, reset, and try invalid images. | Customization persists locally; the bundled background and wordmark remain; invalid assets show errors without corrupting saved settings. | NOT EXECUTED |
+| WIN-13 | Uninstall with service installed, remove service through official visible console, then uninstall; reinstall GUI. | Service blocks uninstall with correct instructions. GUI removal preserves engine and LocalAppData data; reinstall sees them. | NOT EXECUTED |
+| WIN-14 | Test ordinary/admin accounts, UAC denial, WebView2 present/absent, and offline launch. | Russian errors are actionable; no UAC bypass; installed engine works without updater network; WebView2 installation follows NSIS behavior. | NOT EXECUTED |
+| WIN-15 | Upgrade with old guided-test history/recovery files present. | Files remain on disk. New GUI has no guided-test recovery UI/API and does not automatically recover an old marker; record and handle any active mode before Start. | NOT EXECUTED |
+| WIN-16 | Scan all ALTs with YouTube, Discord, and reference checks; use fast mode and Cancel. | Newest ALT appears first without rebuilding earlier rows; results expand with HTTP codes and timings; curl has no visible console; Cancel restores the prior app-owned strategy or stopped state without touching unrelated processes. | PARTIAL: user observed scans and reported UI issues; final installer not accepted |
+
+For WIN-04, record the user-observed video result before and after the window hides with VPN off. A live process, a running driver, DNS resolution, or HTTP 200 does not satisfy this criterion. Repeat WIN-08 and WIN-10 against the exact installer intended for release.
