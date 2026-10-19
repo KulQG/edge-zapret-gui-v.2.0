@@ -180,6 +180,13 @@ async fn get_strategies() -> Result<Vec<strategy::StrategySummary>, AppError> {
     tauri::async_runtime::spawn_blocking(|| {
         let root = diagnostics::engine_dir()
             .map_err(|detail| AppError::diagnostics().with_detail(detail))?;
+        // Before the first engine installation, there is no release to scan.
+        // Keep permission and unexpected filesystem errors visible.
+        match std::fs::symlink_metadata(&root) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(AppError::diagnostics().with_detail(error.to_string())),
+            Ok(_) => (),
+        }
         let discovered = strategy::discover_strategies(&root)?;
         Ok(discovered.into_iter().map(|item| item.summary).collect())
     })
